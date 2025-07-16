@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,107 +12,123 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Building,
-  GraduationCap
+  GraduationCap,
+  Mail,
+  Phone,
+  FileText
 } from 'lucide-react'
+import { useAnalytics, useActivities, useTasks } from '@/hooks/useData'
+import { dataService } from '@/services/dataService'
 
-const kpiData = [
-  {
-    title: 'Total Leads',
-    value: '1,234',
-    change: '+12%',
-    trend: 'up',
-    icon: UserPlus,
-    color: 'text-blue-600'
-  },
-  {
-    title: 'Active Contacts',
-    value: '856',
-    change: '+8%',
-    trend: 'up',
-    icon: Users,
-    color: 'text-green-600'
-  },
-  {
-    title: 'Open Deals',
-    value: '42',
-    change: '-3%',
-    trend: 'down',
-    icon: Handshake,
-    color: 'text-orange-600'
-  },
-  {
-    title: 'Revenue',
-    value: '$124,500',
-    change: '+15%',
-    trend: 'up',
-    icon: DollarSign,
-    color: 'text-emerald-600'
+const getActivityIcon = (type: string) => {
+  switch (type) {
+    case 'lead': return UserPlus
+    case 'contact': return Users
+    case 'deal': return Handshake
+    case 'property': return Building
+    case 'course': return GraduationCap
+    case 'call': return Phone
+    case 'email': return Mail
+    case 'meeting': return Calendar
+    default: return FileText
   }
-]
+}
 
-const recentActivities = [
-  {
-    id: 1,
-    type: 'lead',
-    title: 'New lead from website',
-    description: 'Sarah Johnson submitted contact form',
-    time: '2 minutes ago',
-    icon: UserPlus
-  },
-  {
-    id: 2,
-    type: 'deal',
-    title: 'Deal moved to negotiation',
-    description: 'Enterprise Software License - $45,000',
-    time: '1 hour ago',
-    icon: Handshake
-  },
-  {
-    id: 3,
-    type: 'contact',
-    title: 'Meeting scheduled',
-    description: 'Demo call with TechCorp on Friday',
-    time: '3 hours ago',
-    icon: Calendar
-  },
-  {
-    id: 4,
-    type: 'property',
-    title: 'Property listing updated',
-    description: '123 Main St - Price reduced to $450,000',
-    time: '5 hours ago',
-    icon: Building
-  }
-]
+const formatTimeAgo = (dateString: string) => {
+  const now = new Date()
+  const date = new Date(dateString)
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+  
+  if (diffInMinutes < 1) return 'Just now'
+  if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`
+  
+  const diffInHours = Math.floor(diffInMinutes / 60)
+  if (diffInHours < 24) return `${diffInHours} hours ago`
+  
+  const diffInDays = Math.floor(diffInHours / 24)
+  return `${diffInDays} days ago`
+}
 
-const upcomingTasks = [
-  {
-    id: 1,
-    title: 'Follow up with ABC Corp',
-    dueDate: 'Today, 2:00 PM',
-    priority: 'high'
-  },
-  {
-    id: 2,
-    title: 'Prepare demo for TechStart',
-    dueDate: 'Tomorrow, 10:00 AM',
-    priority: 'medium'
-  },
-  {
-    id: 3,
-    title: 'Send proposal to EduTech Inc',
-    dueDate: 'Friday, 9:00 AM',
-    priority: 'high'
-  },
-  {
-    id: 4,
-    title: 'Property inspection at Oak Street',
-    dueDate: 'Monday, 3:00 PM',
-    priority: 'low'
+const formatDueDate = (dateString: string) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffInHours = (date.getTime() - now.getTime()) / (1000 * 60 * 60)
+  
+  if (diffInHours < 24 && diffInHours > 0) {
+    return `Today, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  } else if (diffInHours < 48 && diffInHours > 24) {
+    return `Tomorrow, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  } else {
+    return date.toLocaleDateString([], { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
-]
+}
 
 export function Dashboard() {
+  const { analytics, loading: analyticsLoading } = useAnalytics()
+  const { activities, loading: activitiesLoading } = useActivities()
+  const { tasks, loading: tasksLoading } = useTasks()
+
+  // Initialize sample data on first load
+  useEffect(() => {
+    dataService.initializeSampleData()
+  }, [])
+
+  if (analyticsLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  const kpiData = [
+    {
+      title: 'Total Leads',
+      value: analytics?.totalLeads?.toString() || '0',
+      change: '+12%',
+      trend: 'up',
+      icon: UserPlus,
+      color: 'text-blue-600'
+    },
+    {
+      title: 'Active Contacts',
+      value: analytics?.totalContacts?.toString() || '0',
+      change: '+8%',
+      trend: 'up',
+      icon: Users,
+      color: 'text-green-600'
+    },
+    {
+      title: 'Open Deals',
+      value: analytics?.openDeals?.toString() || '0',
+      change: '-3%',
+      trend: 'down',
+      icon: Handshake,
+      color: 'text-orange-600'
+    },
+    {
+      title: 'Revenue',
+      value: `${analytics?.totalRevenue?.toLocaleString() || '0'}`,
+      change: '+15%',
+      trend: 'up',
+      icon: DollarSign,
+      color: 'text-emerald-600'
+    }
+  ]
+
+  const upcomingTasks = tasks
+    ?.filter(task => task.status === 'pending')
+    ?.sort((a, b) => new Date(a.dueDate || '').getTime() - new Date(b.dueDate || '').getTime())
+    ?.slice(0, 4) || []
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -172,26 +189,48 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-start space-x-3">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-                      <activity.icon className="w-4 h-4 text-muted-foreground" />
+              {activitiesLoading ? (
+                <div className="space-y-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-start space-x-3">
+                      <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-muted rounded animate-pulse" />
+                        <div className="h-3 bg-muted rounded w-3/4 animate-pulse" />
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                      {activity.title}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {activity.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {activity.time}
-                    </p>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              ) : activities && activities.length > 0 ? (
+                activities.slice(0, 4).map((activity) => {
+                  const ActivityIcon = getActivityIcon(activity.type)
+                  return (
+                    <div key={activity.id} className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                          <ActivityIcon className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground">
+                          {activity.title}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {activity.description}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatTimeAgo(activity.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No recent activities</p>
+                </div>
+              )}
             </div>
             <Button variant="outline" className="w-full mt-4">
               View All Activities
@@ -209,25 +248,46 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {upcomingTasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{task.title}</p>
-                    <p className="text-xs text-muted-foreground">{task.dueDate}</p>
-                  </div>
-                  <Badge
-                    variant={
-                      task.priority === 'high'
-                        ? 'destructive'
-                        : task.priority === 'medium'
-                        ? 'default'
-                        : 'secondary'
-                    }
-                  >
-                    {task.priority}
-                  </Badge>
+              {tasksLoading ? (
+                <div className="space-y-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-muted rounded animate-pulse" />
+                        <div className="h-3 bg-muted rounded w-1/2 animate-pulse" />
+                      </div>
+                      <div className="w-16 h-6 bg-muted rounded animate-pulse" />
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : upcomingTasks && upcomingTasks.length > 0 ? (
+                upcomingTasks.map((task) => (
+                  <div key={task.id} className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{task.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {task.dueDate ? formatDueDate(task.dueDate) : 'No due date'}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={
+                        task.priority === 'high'
+                          ? 'destructive'
+                          : task.priority === 'medium'
+                          ? 'default'
+                          : 'secondary'
+                      }
+                    >
+                      {task.priority}
+                    </Badge>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No upcoming tasks</p>
+                </div>
+              )}
             </div>
             <Button variant="outline" className="w-full mt-4">
               View All Tasks

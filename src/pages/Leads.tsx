@@ -17,54 +17,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, Search, Filter, MoreHorizontal, Mail, Phone, Eye } from 'lucide-react'
-
-const mockLeads = [
-  {
-    id: '1',
-    name: 'Sarah Johnson',
-    email: 'sarah.johnson@techcorp.com',
-    phone: '+1 (555) 123-4567',
-    company: 'TechCorp Solutions',
-    source: 'Website',
-    status: 'new',
-    industry: 'Technology',
-    createdAt: '2024-01-15'
-  },
-  {
-    id: '2',
-    name: 'Michael Chen',
-    email: 'michael.chen@edustart.com',
-    phone: '+1 (555) 234-5678',
-    company: 'EduStart Inc',
-    source: 'LinkedIn',
-    status: 'qualified',
-    industry: 'Education',
-    createdAt: '2024-01-14'
-  },
-  {
-    id: '3',
-    name: 'Emily Rodriguez',
-    email: 'emily.r@realestate.com',
-    phone: '+1 (555) 345-6789',
-    company: 'Prime Properties',
-    source: 'Referral',
-    status: 'contacted',
-    industry: 'Real Estate',
-    createdAt: '2024-01-13'
-  },
-  {
-    id: '4',
-    name: 'David Kim',
-    email: 'david.kim@learningtech.com',
-    phone: '+1 (555) 456-7890',
-    company: 'Learning Tech',
-    source: 'Cold Email',
-    status: 'nurturing',
-    industry: 'EdTech',
-    createdAt: '2024-01-12'
-  }
-]
+import { Plus, Search, Filter, MoreHorizontal, Mail, Phone, Eye, Loader2 } from 'lucide-react'
+import { useLeads } from '@/hooks/useData'
+import { toast } from 'sonner'
 
 const statusColors = {
   new: 'bg-blue-100 text-blue-800',
@@ -77,13 +32,44 @@ const statusColors = {
 
 export function Leads() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [leads] = useState(mockLeads)
+  const { leads, loading, error, updateLead } = useLeads()
 
   const filteredLeads = leads.filter(lead =>
     lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.company.toLowerCase().includes(searchTerm.toLowerCase())
+    (lead.company || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const handleStatusChange = async (leadId: string, newStatus: string) => {
+    try {
+      await updateLead(leadId, { status: newStatus as any })
+      toast.success('Lead status updated successfully')
+    } catch (error) {
+      toast.error('Failed to update lead status')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading leads...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive mb-4">Error loading leads: {error}</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -144,7 +130,9 @@ export function Leads() {
             <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24%</div>
+            <div className="text-2xl font-bold">
+              {leads.length > 0 ? Math.round((leads.filter(l => l.status === 'converted').length / leads.length) * 100) : 0}%
+            </div>
             <p className="text-xs text-muted-foreground">
               +2% from last month
             </p>
@@ -201,7 +189,7 @@ export function Leads() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{lead.company}</TableCell>
+                    <TableCell>{lead.company || 'N/A'}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{lead.source}</Badge>
                     </TableCell>
@@ -210,8 +198,8 @@ export function Leads() {
                         {lead.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{lead.industry}</TableCell>
-                    <TableCell>{lead.createdAt}</TableCell>
+                    <TableCell>{lead.industry || 'N/A'}</TableCell>
+                    <TableCell>{new Date(lead.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -231,6 +219,15 @@ export function Leads() {
                           <DropdownMenuItem>
                             <Phone className="mr-2 h-4 w-4" />
                             Call
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'qualified')}>
+                            Mark as Qualified
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'contacted')}>
+                            Mark as Contacted
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'converted')}>
+                            Mark as Converted
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
